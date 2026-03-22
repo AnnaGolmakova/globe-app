@@ -1,21 +1,23 @@
+@import "tailwindcss";
+
 :root {
-    --text: #6b6375;
-    --bg: #fff;
+	--text: #6b6375;
+	--bg: #fff;
 
-    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-    line-height: 1.5;
-    font-weight: 400;
+	font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+	line-height: 1.5;
+	font-weight: 400;
 
-    color: var(--text);
-    background: var(--bg);
+	color: var(--text);
+	background: var(--bg);
 }
 
 #root {
-    width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
-    min-height: 100svh;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+	margin: 0 auto;
+	min-height: 100svh;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
 }

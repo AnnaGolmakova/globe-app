@@ -10,10 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.2.2",
     "@vladkrutenyuk/three-kvy-core": "^2.3.8",
+    "clsx": "^2.1.1",
     "eventemitter3": "^5.0.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2",
     "three": "^0.183.2"
   },
   "devDependencies": {
