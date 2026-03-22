@@ -2,6 +2,10 @@ import * as THREE from "three/webgpu";
 import * as KVY from "@vladkrutenyuk/three-kvy-core";
 import { GlobeFeature } from "./features/GlobeFeature";
 import { LightsFeature } from "./features/LightsFeature";
+import { CountriesFeature } from "./features/CountriesFeature";
+
+// Keep a reference on the context for use by later modules/features
+export let countriesFeature: CountriesFeature;
 
 export async function createGlobeContext(container: HTMLDivElement) {
 	const renderer = new THREE.WebGPURenderer({ antialias: true });
@@ -30,8 +34,12 @@ export async function createGlobeContext(container: HTMLDivElement) {
 	ctx.three.mount(container);
 
 	const root = new THREE.Object3D();
+
 	KVY.addFeature(root, LightsFeature);
 	KVY.addFeature(root, GlobeFeature);
+	const countries = KVY.addFeature(root, CountriesFeature);
+	countriesFeature = countries;
+
 	ctx.three.scene.add(root);
 
 	return ctx;
