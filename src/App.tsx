@@ -1,7 +1,9 @@
-import "./App.css";
+import { GlobeCanvas } from "./components/GlobeCanvas";
 
-function App() {
-  return <></>;
+export default function App() {
+	return (
+		<div className="relative w-screen h-screen overflow-hidden bg-[--color-background]">
+			<GlobeCanvas />
+		</div>
+	);
 }
-
-export default App;
