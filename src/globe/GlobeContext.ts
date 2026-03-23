@@ -3,6 +3,7 @@ import * as KVY from "@vladkrutenyuk/three-kvy-core";
 import { GlobeFeature } from "./features/GlobeFeature";
 import { LightsFeature } from "./features/LightsFeature";
 import { CountriesFeature } from "./features/CountriesFeature";
+import { SelectionFeature } from "./features/SelectionFeature";
 import { ResizeModule } from "./modules/ResizeModule";
 import { CameraModule } from "./modules/CameraModule";
 import { RaycasterModule } from "./modules/RaycasterModule";
@@ -39,6 +40,10 @@ export async function createGlobeContext(container: HTMLDivElement) {
 	KVY.addFeature(root, GlobeFeature);
 	const countries = KVY.addFeature(root, CountriesFeature);
 	countriesFeature = countries;
+
+	// Create selection feature and link to countries feature
+	const selection = KVY.addFeature(root, SelectionFeature);
+	selection.countriesFeature = countries;
 
 	// Create raycaster module and link to countries feature
 	const raycaster = new RaycasterModule();

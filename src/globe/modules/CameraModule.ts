@@ -76,22 +76,50 @@ export class CameraModule extends KVY.CoreContextModule {
 	}
 
 	/** Smoothly fly camera to look at a world-space position on the globe surface */
-	flyTo(target: THREE.Vector3, duration = 600) {
+	flyTo(target: THREE.Vector3, duration = 700) {
+		// Get the direction from origin to target, then position camera
+		// at a comfortable distance along that direction
+		const direction = target.clone().normalize();
+		const distance = this.controls.distance;
+		const newCameraPos = direction.multiplyScalar(distance);
+
+		const currentCameraPos = new THREE.Vector3();
+		this.controls.getPosition(currentCameraPos);
+
 		const currentTarget = new THREE.Vector3();
 		this.controls.getTarget(currentTarget);
 
-		const from = {
-			x: currentTarget.x,
-			y: currentTarget.y,
-			z: currentTarget.z,
+		const fromPos = {
+			px: currentCameraPos.x,
+			py: currentCameraPos.y,
+			pz: currentCameraPos.z,
+			tx: currentTarget.x,
+			ty: currentTarget.y,
+			tz: currentTarget.z,
 		};
-		const to = { x: target.x, y: target.y, z: target.z };
 
-		new TWEEN.Tween(from)
-			.to(to, duration)
+		const toPos = {
+			px: newCameraPos.x,
+			py: newCameraPos.y,
+			pz: newCameraPos.z,
+			tx: 0,
+			ty: 0,
+			tz: 0,
+		};
+
+		new TWEEN.Tween(fromPos)
+			.to(toPos, duration)
 			.easing(TWEEN.Easing.Cubic.InOut)
 			.onUpdate((obj) => {
-				this.controls.moveTo(obj.x, obj.y, obj.z, false);
+				this.controls.setLookAt(
+					obj.px,
+					obj.py,
+					obj.pz,
+					obj.tx,
+					obj.ty,
+					obj.tz,
+					false
+				);
 			})
 			.start();
 	}

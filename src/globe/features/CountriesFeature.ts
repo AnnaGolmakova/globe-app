@@ -8,7 +8,7 @@ import { lngLatToVec3, centroid } from "../../utils/geo";
 import { GLOBE_RADIUS } from "./GlobeFeature";
 
 // Offset country meshes slightly above globe surface to avoid z-fighting
-const SURFACE_OFFSET = 0.002;
+const SURFACE_OFFSET = 0.005;
 
 export interface CountryMeshUserData {
 	code: string; // numeric ISO 3166-1 (from world-atlas)
@@ -20,14 +20,17 @@ const defaultMaterial = new THREE.MeshBasicMaterial({
 	color: 0x000000,
 	transparent: true,
 	opacity: 0,
-	side: THREE.FrontSide,
+	side: THREE.DoubleSide,
+	depthWrite: false,
 });
 
 export const highlightMaterial = new THREE.MeshBasicMaterial({
 	color: 0x4a9eff,
 	transparent: true,
-	opacity: 0.3,
-	side: THREE.FrontSide,
+	opacity: 0.4,
+	side: THREE.DoubleSide,
+	depthWrite: true,
+	depthTest: true,
 });
 
 export class CountriesFeature extends KVY.Object3DFeature {
