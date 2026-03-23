@@ -1,14 +1,14 @@
-import * as THREE from "three/webgpu";
 import * as KVY from "@vladkrutenyuk/three-kvy-core";
+import * as THREE from "three/webgpu";
 import earcut from "earcut";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
-import world from "world-atlas/countries-110m.json";
-import { lngLatToVec3, centroid } from "../../utils/geo";
+import type { FeatureCollection, MultiPolygon, Polygon, Position } from "geojson";
+import worldAtlass from "world-atlas/countries-110m.json";
+import { centroid, lngLatToVec3 } from "../../utils/geo";
 import { GLOBE_RADIUS } from "./GlobeFeature";
 
-// Offset country meshes slightly above globe surface to avoid z-fighting
-const SURFACE_OFFSET = 0.02;
+const SURFACE_OFFSET = 0.01;
 
 export interface CountryMeshUserData {
 	code: string; // numeric ISO 3166-1 (from world-atlas)
@@ -33,6 +33,8 @@ export const highlightMaterial = new THREE.MeshBasicMaterial({
 	depthTest: true,
 });
 
+const world = worldAtlass as unknown as Topology;
+
 export class CountriesFeature extends KVY.Object3DFeature {
 	/** All country meshes — exposed for RaycasterModule */
 	readonly meshGroup = new THREE.Group();
@@ -40,7 +42,6 @@ export class CountriesFeature extends KVY.Object3DFeature {
 	readonly borderGroup = new THREE.Group();
 
 	useCtx() {
-		// Add both meshes (invisible for raycasting) and borders (visible)
 		this.object.add(this.meshGroup);
 		this.object.add(this.borderGroup);
 		this.buildCountries();
@@ -54,13 +55,11 @@ export class CountriesFeature extends KVY.Object3DFeature {
 	}
 
 	private buildCountries() {
-		// Convert TopoJSON → GeoJSON synchronously — no fetch needed
-		const geojson = feature(
-			world as unknown as Topology,
-			(world as any).objects.countries
-		);
+		const geojson = feature(world, world.objects.countries) as FeatureCollection<
+			Polygon | MultiPolygon
+		>;
 
-		for (const feat of (geojson as any).features) {
+		for (const feat of geojson.features) {
 			// world-atlas uses numeric ISO 3166-1 codes as the id
 			const code = String(feat.id ?? "UNKNOWN");
 			const geom = feat.geometry;
@@ -69,34 +68,30 @@ export class CountriesFeature extends KVY.Object3DFeature {
 				continue;
 			}
 
-			const polygons: number[][][] =
+			const polygons: Position[][] =
 				geom.type === "Polygon"
 					? [geom.coordinates[0]]
-					: geom.coordinates.map((poly: number[][][]) => poly[0]);
+					: geom.coordinates.map((poly) => poly[0]);
 
 			for (const ring of polygons) {
-				// Build invisible mesh for raycasting
 				const mesh = this.buildMesh(ring, code);
 				if (mesh) this.meshGroup.add(mesh);
 
-				// Build visible border
 				const border = this.buildBorder(ring);
 				if (border) this.borderGroup.add(border);
 			}
 		}
 	}
 
-	private buildBorder(ring: number[][]): THREE.Line | null {
+	private buildBorder(ring: Position[]): THREE.Line | null {
 		if (!ring || ring.length < 3) {
 			return null;
 		}
 
 		const r = GLOBE_RADIUS + SURFACE_OFFSET;
 
-		// Subdivide edges more aggressively to follow sphere curvature smoothly
 		const subdivided = this.subdivideBorderRing(ring, 0.5);
 
-		// Add first point at the end to close the loop (since LineLoop not supported in WebGPU)
 		const closedRing = [...subdivided, subdivided[0]];
 
 		const positions = new Float32Array(closedRing.length * 3);
@@ -125,8 +120,8 @@ export class CountriesFeature extends KVY.Object3DFeature {
 		return line;
 	}
 
-	private subdivideBorderRing(ring: number[][], maxSegmentDegrees: number): number[][] {
-		const result: number[][] = [];
+	private subdivideBorderRing(ring: Position[], maxSegmentDegrees: number): Position[] {
+		const result: Position[] = [];
 
 		for (let i = 0; i < ring.length - 1; i++) {
 			const [lng1, lat1] = ring[i];
@@ -159,7 +154,7 @@ export class CountriesFeature extends KVY.Object3DFeature {
 		return result;
 	}
 
-	private buildMesh(ring: number[][], code: string): THREE.Mesh | null {
+	private buildMesh(ring: Position[], code: string): THREE.Mesh | null {
 		if (ring.length < 3) return null;
 
 		const r = GLOBE_RADIUS + SURFACE_OFFSET;
