@@ -5,10 +5,12 @@ import { LightsFeature } from "./features/LightsFeature";
 import { CountriesFeature } from "./features/CountriesFeature";
 import { ResizeModule } from "./modules/ResizeModule";
 import { CameraModule } from "./modules/CameraModule";
+import { RaycasterModule } from "./modules/RaycasterModule";
 
 export type GlobeModules = {
 	resize: ResizeModule;
 	camera: CameraModule;
+	raycaster: RaycasterModule;
 };
 
 export type GlobeCtx = KVY.CoreContext<GlobeModules>;
@@ -29,7 +31,18 @@ export async function createGlobeContext(container: HTMLDivElement) {
 	camera.position.set(0, 0, 3);
 
 	const scene = new THREE.Scene();
-	scene.background = new THREE.Color(0x0a0e1a);
+	scene.background = new THREE.Color(0x0a0a0f);
+
+	const root = new THREE.Object3D();
+
+	KVY.addFeature(root, LightsFeature);
+	KVY.addFeature(root, GlobeFeature);
+	const countries = KVY.addFeature(root, CountriesFeature);
+	countriesFeature = countries;
+
+	// Create raycaster module and link to countries feature
+	const raycaster = new RaycasterModule();
+	raycaster.countriesFeature = countries;
 
 	const ctx = KVY.CoreContext.create({
 		renderer,
@@ -39,18 +52,12 @@ export async function createGlobeContext(container: HTMLDivElement) {
 		modules: {
 			resize: new ResizeModule(),
 			camera: new CameraModule(),
+			raycaster,
 		},
 	});
 
 	await renderer.init();
 	ctx.three.mount(container);
-
-	const root = new THREE.Object3D();
-
-	KVY.addFeature(root, LightsFeature);
-	KVY.addFeature(root, GlobeFeature);
-	const countries = KVY.addFeature(root, CountriesFeature);
-	countriesFeature = countries;
 
 	ctx.three.scene.add(root);
 

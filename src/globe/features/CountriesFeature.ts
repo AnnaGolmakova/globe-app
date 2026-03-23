@@ -15,18 +15,19 @@ export interface CountryMeshUserData {
 	centroid: THREE.Vector3;
 }
 
-const defaultMaterial = new THREE.MeshStandardMaterial({
-	color: 0x2d6a4f,
-	roughness: 1,
-	metalness: 0,
-	side: THREE.DoubleSide,
+// Invisible material for raycasting
+const defaultMaterial = new THREE.MeshBasicMaterial({
+	color: 0x000000,
+	transparent: true,
+	opacity: 0,
+	side: THREE.FrontSide,
 });
 
-export const highlightMaterial = new THREE.MeshStandardMaterial({
-	color: 0x74c69d,
-	roughness: 1,
-	metalness: 0,
-	side: THREE.DoubleSide,
+export const highlightMaterial = new THREE.MeshBasicMaterial({
+	color: 0x4a9eff,
+	transparent: true,
+	opacity: 0.3,
+	side: THREE.FrontSide,
 });
 
 export class CountriesFeature extends KVY.Object3DFeature {
@@ -36,6 +37,7 @@ export class CountriesFeature extends KVY.Object3DFeature {
 	readonly borderGroup = new THREE.Group();
 
 	useCtx() {
+		// Add both meshes (invisible for raycasting) and borders (visible)
 		this.object.add(this.meshGroup);
 		this.object.add(this.borderGroup);
 		this.buildCountries();
@@ -64,19 +66,17 @@ export class CountriesFeature extends KVY.Object3DFeature {
 				continue;
 			}
 
-			// Extract outer rings from polygons
-			let rings: number[][][] = [];
-			if (geom.type === "Polygon") {
-				rings = [geom.coordinates[0]];
-			} else if (geom.type === "MultiPolygon") {
-				rings = geom.coordinates.map((poly: number[][][]) => poly[0]);
-			}
+			const polygons: number[][][] =
+				geom.type === "Polygon"
+					? [geom.coordinates[0]]
+					: geom.coordinates.map((poly: number[][][]) => poly[0]);
 
-			for (const ring of rings) {
+			for (const ring of polygons) {
+				// Build invisible mesh for raycasting
 				const mesh = this.buildMesh(ring, code);
 				if (mesh) this.meshGroup.add(mesh);
 
-				// Add border line for this ring
+				// Build visible border
 				const border = this.buildBorder(ring);
 				if (border) this.borderGroup.add(border);
 			}
@@ -88,10 +88,10 @@ export class CountriesFeature extends KVY.Object3DFeature {
 			return null;
 		}
 
-		const r = GLOBE_RADIUS + SURFACE_OFFSET + 0.001; // Slightly above the country mesh
+		const r = GLOBE_RADIUS + SURFACE_OFFSET;
 
-		// Subdivide the ring edges to follow sphere curvature
-		const subdivided = this.subdivideBorderRing(ring, 2); // 2 degrees max segment
+		// Subdivide edges to follow sphere curvature
+		const subdivided = this.subdivideBorderRing(ring, 2);
 
 		const positions = new Float32Array(subdivided.length * 3);
 		for (let i = 0; i < subdivided.length; i++) {
@@ -106,8 +106,10 @@ export class CountriesFeature extends KVY.Object3DFeature {
 		geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
 		const material = new THREE.LineBasicMaterial({
-			color: 0x1a1a1a,
+			color: 0x4a9eff,
 			linewidth: 1,
+			opacity: 0.8,
+			transparent: true,
 		});
 
 		return new THREE.Line(geometry, material);
@@ -122,12 +124,10 @@ export class CountriesFeature extends KVY.Object3DFeature {
 
 			result.push([lng1, lat1]);
 
-			// Calculate angular distance between points
 			const dlng = lng2 - lng1;
 			const dlat = lat2 - lat1;
 			const dist = Math.sqrt(dlng * dlng + dlat * dlat);
 
-			// If distance exceeds threshold, subdivide
 			if (dist > maxSegmentDegrees) {
 				const steps = Math.ceil(dist / maxSegmentDegrees);
 				for (let j = 1; j < steps; j++) {
@@ -141,53 +141,35 @@ export class CountriesFeature extends KVY.Object3DFeature {
 	}
 
 	private buildMesh(ring: number[][], code: string): THREE.Mesh | null {
-		if (!ring || ring.length < 3) {
-			return null;
-		}
+		if (ring.length < 3) return null;
 
 		const r = GLOBE_RADIUS + SURFACE_OFFSET;
 
-		// Triangulate directly in lat/lng space (2D)
+		// Triangulate in 2D lng/lat space
 		const flat: number[] = [];
 		for (const [lng, lat] of ring) {
 			flat.push(lng, lat);
 		}
 
 		const indices = earcut(flat);
-		if (!indices.length) {
-			return null;
+		if (!indices.length) return null;
+
+		// Convert to 3D
+		const verts3d = ring.map(([lng, lat]) => lngLatToVec3(lng, lat, r));
+
+		const positions = new Float32Array(verts3d.length * 3);
+		for (let i = 0; i < verts3d.length; i++) {
+			positions[i * 3 + 0] = verts3d[i].x;
+			positions[i * 3 + 1] = verts3d[i].y;
+			positions[i * 3 + 2] = verts3d[i].z;
 		}
-
-		// Convert original vertices to 3D
-		const originalVerts = ring.map(([lng, lat]) => lngLatToVec3(lng, lat, r));
-
-		// Subdivide triangles geodesically
-		const finalPositions: number[] = [];
-		const finalIndices: number[] = [];
-
-		for (let i = 0; i < indices.length; i += 3) {
-			const i0 = indices[i];
-			const i1 = indices[i + 1];
-			const i2 = indices[i + 2];
-
-			const v0 = originalVerts[i0];
-			const v1 = originalVerts[i1];
-			const v2 = originalVerts[i2];
-
-			// Subdivide this triangle
-			this.subdivideTriangle(v0, v1, v2, r, 2, finalPositions, finalIndices);
-		}
-
-		// Calculate centroid for userData
-		const c = centroid(originalVerts);
 
 		const geometry = new THREE.BufferGeometry();
-		geometry.setAttribute(
-			"position",
-			new THREE.BufferAttribute(new Float32Array(finalPositions), 3)
-		);
-		geometry.setIndex(finalIndices);
+		geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+		geometry.setIndex(indices);
 		geometry.computeVertexNormals();
+
+		const c = centroid(verts3d);
 
 		const mesh = new THREE.Mesh(geometry, defaultMaterial);
 		mesh.userData = {
@@ -196,52 +178,6 @@ export class CountriesFeature extends KVY.Object3DFeature {
 		} satisfies CountryMeshUserData;
 
 		return mesh;
-	}
-
-	/**
-	 * Recursively subdivide a triangle on the sphere surface
-	 */
-	private subdivideTriangle(
-		v0: THREE.Vector3,
-		v1: THREE.Vector3,
-		v2: THREE.Vector3,
-		radius: number,
-		depth: number,
-		positions: number[],
-		indices: number[]
-	): void {
-		if (depth === 0) {
-			// Base case: add the triangle
-			const baseIndex = positions.length / 3;
-			positions.push(v0.x, v0.y, v0.z);
-			positions.push(v1.x, v1.y, v1.z);
-			positions.push(v2.x, v2.y, v2.z);
-			indices.push(baseIndex, baseIndex + 1, baseIndex + 2);
-			return;
-		}
-
-		// Find midpoints and project them onto the sphere
-		const m01 = new THREE.Vector3()
-			.addVectors(v0, v1)
-			.multiplyScalar(0.5)
-			.normalize()
-			.multiplyScalar(radius);
-		const m12 = new THREE.Vector3()
-			.addVectors(v1, v2)
-			.multiplyScalar(0.5)
-			.normalize()
-			.multiplyScalar(radius);
-		const m20 = new THREE.Vector3()
-			.addVectors(v2, v0)
-			.multiplyScalar(0.5)
-			.normalize()
-			.multiplyScalar(radius);
-
-		// Recursively subdivide the 4 new triangles
-		this.subdivideTriangle(v0, m01, m20, radius, depth - 1, positions, indices);
-		this.subdivideTriangle(v1, m12, m01, radius, depth - 1, positions, indices);
-		this.subdivideTriangle(v2, m20, m12, radius, depth - 1, positions, indices);
-		this.subdivideTriangle(m01, m12, m20, radius, depth - 1, positions, indices);
 	}
 
 	getMeshByCode(code: string): THREE.Mesh | undefined {

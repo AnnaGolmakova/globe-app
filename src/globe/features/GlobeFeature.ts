@@ -5,14 +5,13 @@ export const GLOBE_RADIUS = 1;
 
 export class GlobeFeature extends KVY.Object3DFeature {
 	private mesh!: THREE.Mesh;
-	private axesHelper!: THREE.AxesHelper;
 
 	useCtx() {
 		const geometry = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64);
 
 		const material = new THREE.MeshStandardMaterial({
-			color: 0x1a3a5c,
-			roughness: 0.8,
+			color: 0x1a2332,
+			roughness: 0.85,
 			metalness: 0.1,
 		});
 

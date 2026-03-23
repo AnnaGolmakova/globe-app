@@ -16,14 +16,9 @@ export class ResizeModule extends KVY.CoreContextModule {
 		};
 
 		const onMount = (container: HTMLElement) => {
-			console.log("[ResizeModule] Mounting, container:", container);
 			observer = new ResizeObserver(() => onResize(container));
 			observer.observe(container);
 			onResize(container); // run once immediately
-			console.log("[ResizeModule] Initial size:", {
-				width: container.clientWidth,
-				height: container.clientHeight,
-			});
 		};
 
 		// Wait for mount before observing

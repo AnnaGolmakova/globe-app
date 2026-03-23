@@ -38,18 +38,7 @@ export class CameraModule extends KVY.CoreContextModule {
 			canvas.addEventListener("pointerdown", () => {
 				this.autoRotate = false;
 			});
-
-			console.log("[CameraModule] Controls initialized:", {
-				minDistance: this.controls.minDistance,
-				maxDistance: this.controls.maxDistance,
-				smoothTime: this.controls.smoothTime,
-				enabled: this.controls.enabled,
-				domElement: canvas,
-				canvasInDocument: document.contains(canvas),
-			});
 		};
-
-		let frameCount = 0;
 
 		// Update controls on every render frame
 		const onRenderBefore = () => {
@@ -64,20 +53,8 @@ export class CameraModule extends KVY.CoreContextModule {
 				this.controls.azimuthAngle += rotationAmount;
 			}
 
-			const updated = this.controls.update(delta);
+			this.controls.update(delta);
 			TWEEN.update();
-
-			// Debug every 60 frames (~1 second at 60fps)
-			if (frameCount % 60 === 0) {
-				console.log("[CameraModule] Frame update:", {
-					frame: frameCount,
-					delta: delta.toFixed(4),
-					updated,
-					enabled: this.controls.enabled,
-					distance: this.controls.distance.toFixed(2),
-				});
-			}
-			frameCount++;
 		};
 
 		// Wait for mount before initializing controls
