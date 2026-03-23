@@ -3,6 +3,15 @@ import * as KVY from "@vladkrutenyuk/three-kvy-core";
 import { GlobeFeature } from "./features/GlobeFeature";
 import { LightsFeature } from "./features/LightsFeature";
 import { CountriesFeature } from "./features/CountriesFeature";
+import { ResizeModule } from "./modules/ResizeModule";
+import { CameraModule } from "./modules/CameraModule";
+
+export type GlobeModules = {
+	resize: ResizeModule;
+	camera: CameraModule;
+};
+
+export type GlobeCtx = KVY.CoreContext<GlobeModules>;
 
 // Keep a reference on the context for use by later modules/features
 export let countriesFeature: CountriesFeature;
@@ -27,7 +36,10 @@ export async function createGlobeContext(container: HTMLDivElement) {
 		camera,
 		scene,
 		clock: new THREE.Clock(),
-		modules: {},
+		modules: {
+			resize: new ResizeModule(),
+			camera: new CameraModule(),
+		},
 	});
 
 	await renderer.init();
@@ -44,5 +56,3 @@ export async function createGlobeContext(container: HTMLDivElement) {
 
 	return ctx;
 }
-
-export type GlobeCtx = Awaited<ReturnType<typeof createGlobeContext>>;

@@ -5,6 +5,7 @@ export const GLOBE_RADIUS = 1;
 
 export class GlobeFeature extends KVY.Object3DFeature {
 	private mesh!: THREE.Mesh;
+	private axesHelper!: THREE.AxesHelper;
 
 	useCtx() {
 		const geometry = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64);
