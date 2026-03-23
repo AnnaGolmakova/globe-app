@@ -12,7 +12,7 @@ body {
 :root {
 	--text: #6b6375;
 	--bg: #fff;
-	--color-background: #0a0e1a;
+	--color-background: #000000;
 
 	font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 	line-height: 1.5;

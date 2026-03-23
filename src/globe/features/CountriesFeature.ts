@@ -8,7 +8,7 @@ import { lngLatToVec3, centroid } from "../../utils/geo";
 import { GLOBE_RADIUS } from "./GlobeFeature";
 
 // Offset country meshes slightly above globe surface to avoid z-fighting
-const SURFACE_OFFSET = 0.005;
+const SURFACE_OFFSET = 0.02;
 
 export interface CountryMeshUserData {
 	code: string; // numeric ISO 3166-1 (from world-atlas)
@@ -27,7 +27,7 @@ const defaultMaterial = new THREE.MeshBasicMaterial({
 export const highlightMaterial = new THREE.MeshBasicMaterial({
 	color: 0x4a9eff,
 	transparent: true,
-	opacity: 0.4,
+	opacity: 0.8,
 	side: THREE.DoubleSide,
 	depthWrite: true,
 	depthTest: true,
@@ -93,12 +93,15 @@ export class CountriesFeature extends KVY.Object3DFeature {
 
 		const r = GLOBE_RADIUS + SURFACE_OFFSET;
 
-		// Subdivide edges to follow sphere curvature
-		const subdivided = this.subdivideBorderRing(ring, 2);
+		// Subdivide edges more aggressively to follow sphere curvature smoothly
+		const subdivided = this.subdivideBorderRing(ring, 0.5);
 
-		const positions = new Float32Array(subdivided.length * 3);
-		for (let i = 0; i < subdivided.length; i++) {
-			const [lng, lat] = subdivided[i];
+		// Add first point at the end to close the loop (since LineLoop not supported in WebGPU)
+		const closedRing = [...subdivided, subdivided[0]];
+
+		const positions = new Float32Array(closedRing.length * 3);
+		for (let i = 0; i < closedRing.length; i++) {
+			const [lng, lat] = closedRing[i];
 			const v = lngLatToVec3(lng, lat, r);
 			positions[i * 3 + 0] = v.x;
 			positions[i * 3 + 1] = v.y;
@@ -109,25 +112,34 @@ export class CountriesFeature extends KVY.Object3DFeature {
 		geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
 		const material = new THREE.LineBasicMaterial({
-			color: 0x4a9eff,
+			color: 0xaaaaaa,
 			linewidth: 1,
-			opacity: 0.8,
+			opacity: 0.4,
 			transparent: true,
+			depthTest: true,
+			depthWrite: false,
 		});
 
-		return new THREE.Line(geometry, material);
+		const line = new THREE.Line(geometry, material);
+		line.renderOrder = 1; // Render after globe surface
+		return line;
 	}
 
 	private subdivideBorderRing(ring: number[][], maxSegmentDegrees: number): number[][] {
 		const result: number[][] = [];
 
-		for (let i = 0; i < ring.length; i++) {
+		for (let i = 0; i < ring.length - 1; i++) {
 			const [lng1, lat1] = ring[i];
-			const [lng2, lat2] = ring[(i + 1) % ring.length];
+			const [lng2, lat2] = ring[i + 1];
 
 			result.push([lng1, lat1]);
 
-			const dlng = lng2 - lng1;
+			// Handle longitude wrapping (e.g., across date line)
+			let dlng = lng2 - lng1;
+			if (Math.abs(dlng) > 180) {
+				dlng = dlng > 0 ? dlng - 360 : dlng + 360;
+			}
+
 			const dlat = lat2 - lat1;
 			const dist = Math.sqrt(dlng * dlng + dlat * dlat);
 
@@ -135,7 +147,11 @@ export class CountriesFeature extends KVY.Object3DFeature {
 				const steps = Math.ceil(dist / maxSegmentDegrees);
 				for (let j = 1; j < steps; j++) {
 					const t = j / steps;
-					result.push([lng1 + dlng * t, lat1 + dlat * t]);
+					let newLng = lng1 + dlng * t;
+					// Normalize longitude to -180 to 180 range
+					if (newLng > 180) newLng -= 360;
+					if (newLng < -180) newLng += 360;
+					result.push([newLng, lat1 + dlat * t]);
 				}
 			}
 		}

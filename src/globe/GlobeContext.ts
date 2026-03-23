@@ -32,7 +32,7 @@ export async function createGlobeContext(container: HTMLDivElement) {
 	camera.position.set(0, 0, 3);
 
 	const scene = new THREE.Scene();
-	scene.background = new THREE.Color(0x0a0a0f);
+	scene.background = new THREE.Color(0x000000);
 
 	const root = new THREE.Object3D();
 
