@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchCountryByCode, countryKeys } from "../api/restcountries";
+import { fetchCountryByCode } from "../api/restcountries";
 
 export function useCountryData(code: string | null) {
 	return useQuery({
-		queryKey: countryKeys.byCode(code ?? ""),
+		queryKey: ["country", code ?? ""],
 		queryFn: () => fetchCountryByCode(code!),
 		enabled: !!code,
 		staleTime: Infinity, // country facts don't change
