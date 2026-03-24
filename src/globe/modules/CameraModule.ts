@@ -1,96 +1,35 @@
 import * as THREE from "three/webgpu";
-import * as THREE_STANDARD from "three";
 import * as KVY from "@vladkrutenyuk/three-kvy-core";
 import CameraControls from "camera-controls";
 import TWEEN from "@tweenjs/tween.js";
 
-CameraControls.install({ THREE: THREE_STANDARD });
+CameraControls.install({ THREE });
 
 export class CameraModule extends KVY.CoreContextModule {
 	controls!: CameraControls;
-	private clock!: THREE_STANDARD.Clock;
-	private autoRotate = true;
-	private autoRotateSpeed = 2.0;
-	globeContainer!: THREE.Object3D; // Reference to the globe container to rotate
 
 	useCtx() {
 		const { renderer, camera } = this.ctx.three;
 
-		// Create a separate clock for camera controls to avoid conflicts
-		this.clock = new THREE_STANDARD.Clock();
-
 		const onMount = () => {
-			// Ensure canvas can receive pointer events
 			const canvas = renderer.domElement;
 			canvas.style.touchAction = "none";
 			canvas.style.userSelect = "none";
-			canvas.style.cursor = "grab";
 
-			// Initialize controls after mount
 			this.controls = new CameraControls(camera as THREE.PerspectiveCamera, canvas);
 
-			// Sensible defaults for globe navigation
 			this.controls.minDistance = 1.5;
 			this.controls.maxDistance = 6;
 			this.controls.smoothTime = 0.25;
 			this.controls.enabled = true;
-
-			// Disable rotation controls since we're rotating the globe directly
 			this.controls.azimuthRotateSpeed = 0;
 			this.controls.polarRotateSpeed = 0;
-
-			// Enable drag to rotate the globe
-			let isDragging = false;
-			let previousMousePosition = { x: 0, y: 0 };
-
-			canvas.addEventListener("pointerdown", (e) => {
-				this.autoRotate = false;
-				isDragging = true;
-				previousMousePosition = { x: e.clientX, y: e.clientY };
-			});
-
-			canvas.addEventListener("pointermove", (e) => {
-				if (!isDragging || !this.globeContainer) return;
-
-				const deltaX = e.clientX - previousMousePosition.x;
-				const deltaY = e.clientY - previousMousePosition.y;
-
-				// Rotate globe based on mouse movement
-				this.globeContainer.rotation.y += deltaX * 0.005;
-				this.globeContainer.rotation.x += deltaY * 0.005;
-
-				// Clamp X rotation to prevent flipping
-				this.globeContainer.rotation.x = Math.max(
-					-Math.PI / 2,
-					Math.min(Math.PI / 2, this.globeContainer.rotation.x)
-				);
-
-				previousMousePosition = { x: e.clientX, y: e.clientY };
-			});
-
-			canvas.addEventListener("pointerup", () => {
-				isDragging = false;
-			});
-
-			canvas.addEventListener("pointerleave", () => {
-				isDragging = false;
-			});
 		};
 
-		// Update controls on every render frame
 		const onRenderBefore = () => {
 			if (!this.controls) return;
 
-			// Use our own clock for camera controls
-			const delta = this.clock.getDelta();
-
-			// Auto-rotate the globe container
-			if (this.autoRotate && this.globeContainer) {
-				const rotationAmount = (this.autoRotateSpeed * delta * Math.PI) / 180;
-				this.globeContainer.rotation.y += rotationAmount;
-			}
-
-			this.controls.update(delta);
+			this.controls.update(this.ctx.deltaTime);
 			TWEEN.update();
 		};
 
@@ -100,7 +39,6 @@ export class CameraModule extends KVY.CoreContextModule {
 			this.ctx.three.once("mount", onMount);
 		}
 
-		// Listen to render events
 		this.ctx.three.on("renderbefore", onRenderBefore);
 
 		return () => {

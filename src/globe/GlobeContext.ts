@@ -4,6 +4,7 @@ import { GlobeFeature } from "./features/GlobeFeature";
 import { LightsFeature } from "./features/LightsFeature";
 import { CountriesFeature } from "./features/CountriesFeature";
 import { SelectionFeature } from "./features/SelectionFeature";
+import { GlobeRotationFeature } from "./features/GlobeRotationFeature";
 import { ResizeModule } from "./modules/ResizeModule";
 import { CameraModule } from "./modules/CameraModule";
 import { RaycasterModule } from "./modules/RaycasterModule";
@@ -40,6 +41,7 @@ export async function createGlobeContext(container: HTMLDivElement) {
 
 	globeContainer = new THREE.Object3D();
 	KVY.addFeature(globeContainer, GlobeFeature);
+	KVY.addFeature(globeContainer, GlobeRotationFeature);
 	const countries = KVY.addFeature(globeContainer, CountriesFeature);
 	countriesFeature = countries;
 
@@ -53,9 +55,6 @@ export async function createGlobeContext(container: HTMLDivElement) {
 	const raycaster = new RaycasterModule();
 	raycaster.countriesFeature = countries;
 
-	const cameraModule = new CameraModule();
-	cameraModule.globeContainer = globeContainer;
-
 	const ctx = KVY.CoreContext.create({
 		renderer,
 		camera,
@@ -63,7 +62,7 @@ export async function createGlobeContext(container: HTMLDivElement) {
 		clock: new THREE.Clock(),
 		modules: {
 			resize: new ResizeModule(),
-			camera: cameraModule,
+			camera: new CameraModule(),
 			raycaster,
 		},
 	});
