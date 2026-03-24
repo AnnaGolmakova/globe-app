@@ -16,8 +16,8 @@ export type GlobeModules = {
 
 export type GlobeCtx = KVY.CoreContext<GlobeModules>;
 
-// Keep a reference on the context for use by later modules/features
 export let countriesFeature: CountriesFeature;
+export let globeContainer: THREE.Object3D;
 
 export async function createGlobeContext(container: HTMLDivElement) {
 	const renderer = new THREE.WebGPURenderer({ antialias: true });
@@ -37,17 +37,24 @@ export async function createGlobeContext(container: HTMLDivElement) {
 	const root = new THREE.Object3D();
 
 	KVY.addFeature(root, LightsFeature);
-	KVY.addFeature(root, GlobeFeature);
-	const countries = KVY.addFeature(root, CountriesFeature);
+
+	globeContainer = new THREE.Object3D();
+	KVY.addFeature(globeContainer, GlobeFeature);
+	const countries = KVY.addFeature(globeContainer, CountriesFeature);
 	countriesFeature = countries;
 
 	// Create selection feature and link to countries feature
-	const selection = KVY.addFeature(root, SelectionFeature);
+	const selection = KVY.addFeature(globeContainer, SelectionFeature);
 	selection.countriesFeature = countries;
+
+	root.add(globeContainer);
 
 	// Create raycaster module and link to countries feature
 	const raycaster = new RaycasterModule();
 	raycaster.countriesFeature = countries;
+
+	const cameraModule = new CameraModule();
+	cameraModule.globeContainer = globeContainer;
 
 	const ctx = KVY.CoreContext.create({
 		renderer,
@@ -56,14 +63,13 @@ export async function createGlobeContext(container: HTMLDivElement) {
 		clock: new THREE.Clock(),
 		modules: {
 			resize: new ResizeModule(),
-			camera: new CameraModule(),
+			camera: cameraModule,
 			raycaster,
 		},
 	});
 
 	await renderer.init();
 	ctx.three.mount(container);
-
 	ctx.three.scene.add(root);
 
 	return ctx;

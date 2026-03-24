@@ -10,7 +10,8 @@ export class CameraModule extends KVY.CoreContextModule {
 	controls!: CameraControls;
 	private clock!: THREE_STANDARD.Clock;
 	private autoRotate = true;
-	private autoRotateSpeed = 2.0; // degrees per second
+	private autoRotateSpeed = 2.0;
+	globeContainer!: THREE.Object3D; // Reference to the globe container to rotate
 
 	useCtx() {
 		const { renderer, camera } = this.ctx.three;
@@ -34,9 +35,45 @@ export class CameraModule extends KVY.CoreContextModule {
 			this.controls.smoothTime = 0.25;
 			this.controls.enabled = true;
 
-			// Disable auto-rotate when user interacts
-			canvas.addEventListener("pointerdown", () => {
+			// Disable rotation controls since we're rotating the globe directly
+			this.controls.azimuthRotateSpeed = 0;
+			this.controls.polarRotateSpeed = 0;
+
+			// Enable drag to rotate the globe
+			let isDragging = false;
+			let previousMousePosition = { x: 0, y: 0 };
+
+			canvas.addEventListener("pointerdown", (e) => {
 				this.autoRotate = false;
+				isDragging = true;
+				previousMousePosition = { x: e.clientX, y: e.clientY };
+			});
+
+			canvas.addEventListener("pointermove", (e) => {
+				if (!isDragging || !this.globeContainer) return;
+
+				const deltaX = e.clientX - previousMousePosition.x;
+				const deltaY = e.clientY - previousMousePosition.y;
+
+				// Rotate globe based on mouse movement
+				this.globeContainer.rotation.y += deltaX * 0.005;
+				this.globeContainer.rotation.x += deltaY * 0.005;
+
+				// Clamp X rotation to prevent flipping
+				this.globeContainer.rotation.x = Math.max(
+					-Math.PI / 2,
+					Math.min(Math.PI / 2, this.globeContainer.rotation.x)
+				);
+
+				previousMousePosition = { x: e.clientX, y: e.clientY };
+			});
+
+			canvas.addEventListener("pointerup", () => {
+				isDragging = false;
+			});
+
+			canvas.addEventListener("pointerleave", () => {
+				isDragging = false;
 			});
 		};
 
@@ -47,17 +84,16 @@ export class CameraModule extends KVY.CoreContextModule {
 			// Use our own clock for camera controls
 			const delta = this.clock.getDelta();
 
-			// Auto-rotate the globe
-			if (this.autoRotate) {
+			// Auto-rotate the globe container
+			if (this.autoRotate && this.globeContainer) {
 				const rotationAmount = (this.autoRotateSpeed * delta * Math.PI) / 180;
-				this.controls.azimuthAngle += rotationAmount;
+				this.globeContainer.rotation.y += rotationAmount;
 			}
 
 			this.controls.update(delta);
 			TWEEN.update();
 		};
 
-		// Wait for mount before initializing controls
 		if (this.ctx.three.isMounted) {
 			onMount();
 		} else {
@@ -77,8 +113,6 @@ export class CameraModule extends KVY.CoreContextModule {
 
 	/** Smoothly fly camera to look at a world-space position on the globe surface */
 	flyTo(target: THREE.Vector3, duration = 700) {
-		// Get the direction from origin to target, then position camera
-		// at a comfortable distance along that direction
 		const direction = target.clone().normalize();
 		const distance = this.controls.distance;
 		const newCameraPos = direction.multiplyScalar(distance);
